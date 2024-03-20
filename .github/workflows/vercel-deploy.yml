@@ -1,0 +1,22 @@
+name: Vercel Deployment
+
+on:
+  push:
+    branches:
+      - main  # 替换为你的默认分支名称
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Trigger Vercel deployment
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel_token: ${{ secrets.VERCEL_TOKEN }}  # 添加 Vercel 的访问令牌作为 GitHub Secrets
+          vercel_project_id: prj_DAZnkpcuxndFH7TDs41v9GFn1xXN  # 替换为你的 Vercel 项目 ID
+          vercel_scope: production  # 选择部署环境，可以是 production 或 preview
+
