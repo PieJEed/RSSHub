@@ -1,6 +1,7 @@
-import { Route } from '@/types';
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
+
 import { apiBase, baseUrl, getUserInfo, renderLive } from './utils';
 
 export const route: Route = {
@@ -34,6 +35,11 @@ async function handler(ctx) {
 
     const casts = liveData.results.map((item) => renderLive(item));
 
+    ctx.set('json', {
+        userInfo,
+        liveData,
+    });
+
     return {
         title: `${userInfo.name} (@${userInfo.username}) - ライブ配信 | OTOBANANA`,
         description: userInfo.bio.replaceAll('\n', ' '),
@@ -46,9 +52,4 @@ async function handler(ctx) {
         itunes_author: userInfo.name,
         item: casts,
     };
-
-    ctx.set('json', {
-        userInfo,
-        liveData,
-    });
 }

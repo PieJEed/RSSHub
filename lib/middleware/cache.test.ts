@@ -1,5 +1,6 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
 import Parser from 'rss-parser';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import wait from '@/utils/wait';
 
 process.env.CACHE_EXPIRE = '1';
@@ -10,6 +11,24 @@ const parser = new Parser();
 afterEach(() => {
     vi.resetModules();
 });
+
+const noCacheTestFunc = async () => {
+    const app = (await import('@/app')).default;
+
+    const response1 = await app.request('/test/cache');
+    const response2 = await app.request('/test/cache');
+
+    const parsed1 = await parser.parseString(await response1.text());
+    const parsed2 = await parser.parseString(await response2.text());
+
+    expect(response2.status).toBe(200);
+    expect(response2.headers).not.toHaveProperty('rsshub-cache-status');
+
+    expect(parsed1.items[0].content).toBe('Cache1');
+    expect(parsed2.items[0].content).toBe('Cache2');
+
+    expect(parsed1.ttl).toEqual('1');
+};
 
 describe('cache', () => {
     it('memory', async () => {
@@ -32,6 +51,8 @@ describe('cache', () => {
 
         expect(response2.status).toBe(200);
         expect(response2.headers.get('rsshub-cache-status')).toBe('HIT');
+
+        expect(parsed1.ttl).toEqual('1');
 
         await wait(1 * 1000 + 100);
         const response3 = await app.request('/test/cache');
@@ -81,6 +102,8 @@ describe('cache', () => {
         expect(response2.status).toBe(200);
         expect(response2.headers.get('rsshub-cache-status')).toBe('HIT');
 
+        expect(parsed1.ttl).toEqual('1');
+
         await wait(1 * 1000 + 100);
         const response3 = await app.request('/test/cache');
         expect(response3.headers).not.toHaveProperty('rsshub-cache-status');
@@ -114,57 +137,25 @@ describe('cache', () => {
         process.env.CACHE_TYPE = 'redis';
         const cache = (await import('@/utils/cache')).default;
         await cache.clients.redisClient!.quit();
-        const app = (await import('@/app')).default;
-
-        const response1 = await app.request('/test/cache');
-        const response2 = await app.request('/test/cache');
-
-        const parsed1 = await parser.parseString(await response1.text());
-        const parsed2 = await parser.parseString(await response2.text());
-
-        expect(response2.status).toBe(200);
-        expect(response2.headers).not.toHaveProperty('rsshub-cache-status');
-
-        expect(parsed1.items[0].content).toBe('Cache1');
-        expect(parsed2.items[0].content).toBe('Cache2');
+        await noCacheTestFunc();
     });
 
     it('redis with error', async () => {
         process.env.CACHE_TYPE = 'redis';
         process.env.REDIS_URL = 'redis://wrongpath:6379';
-        const app = (await import('@/app')).default;
-
-        const response1 = await app.request('/test/cache');
-        const response2 = await app.request('/test/cache');
-
-        const parsed1 = await parser.parseString(await response1.text());
-        const parsed2 = await parser.parseString(await response2.text());
-
-        expect(response2.status).toBe(200);
-        expect(response2.headers).not.toHaveProperty('rsshub-cache-status');
-
-        expect(parsed1.items[0].content).toBe('Cache1');
-        expect(parsed2.items[0].content).toBe('Cache2');
-
+        await noCacheTestFunc();
         const cache = (await import('@/utils/cache')).default;
-        await cache.clients.redisClient!.quit();
-    });
+        cache.clients.redisClient?.disconnect();
+    }, 20000);
 
     it('no cache', async () => {
         process.env.CACHE_TYPE = 'NO';
-        const app = (await import('@/app')).default;
+        await noCacheTestFunc();
+    });
 
-        const response1 = await app.request('/test/cache');
-        const response2 = await app.request('/test/cache');
-
-        const parsed1 = await parser.parseString(await response1.text());
-        const parsed2 = await parser.parseString(await response2.text());
-
-        expect(response2.status).toBe(200);
-        expect(response2.headers).not.toHaveProperty('rsshub-cache-status');
-
-        expect(parsed1.items[0].content).toBe('Cache1');
-        expect(parsed2.items[0].content).toBe('Cache2');
+    it('no cache (empty string)', async () => {
+        process.env.CACHE_TYPE = '';
+        await noCacheTestFunc();
     });
 
     it('throws URL key', async () => {
@@ -177,5 +168,23 @@ describe('cache', () => {
         } catch (error: any) {
             expect(error.message).toContain('Cache key must be a string');
         }
+    });
+
+    it('RSS TTL (no cache)', async () => {
+        process.env.CACHE_TYPE = '';
+        process.env.CACHE_EXPIRE = '600';
+        const app = (await import('@/app')).default;
+        const response = await app.request('/test/cache');
+        const parsed = await parser.parseString(await response.text());
+        expect(parsed.ttl).toEqual('1');
+    });
+
+    it('RSS TTL (w/ cache)', async () => {
+        process.env.CACHE_TYPE = 'memory';
+        process.env.CACHE_EXPIRE = '600';
+        const app = (await import('@/app')).default;
+        const response = await app.request('/test/cache');
+        const parsed = await parser.parseString(await response.text());
+        expect(parsed.ttl).toEqual('10');
     });
 });

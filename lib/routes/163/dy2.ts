@@ -1,10 +1,11 @@
-import { Route } from '@/types';
+import { load } from 'cheerio';
+
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
-import { load } from 'cheerio';
-import iconv from 'iconv-lite';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
+
 import { parseDyArticle } from './utils';
 
 export const route: Route = {
@@ -31,12 +32,8 @@ async function handler(ctx) {
     const id = ctx.req.param('id');
     const limit = ctx.req.query('limit') ?? 30;
     const url = `https://www.163.com/dy/media/${id}.html`;
-
-    const response = await got(url, { responseType: 'buffer' });
-
-    const charset = response.headers['content-type'].split('=')[1];
-    const data = iconv.decode(response.data, charset);
-    const $ = load(data);
+    const res = await got(url);
+    const $ = load(res.data);
 
     const list = $('.tab_content ul li')
         .slice(0, limit)
@@ -52,7 +49,7 @@ async function handler(ctx) {
             };
         });
 
-    const items = await Promise.all(list.map((item) => parseDyArticle(charset, item, cache.tryGet)));
+    const items = await Promise.all(list.map((item) => parseDyArticle(item, cache.tryGet)));
 
     return {
         title: `${$('head title').text()} - 网易号`,

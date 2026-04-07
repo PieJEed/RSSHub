@@ -1,6 +1,8 @@
-import { Route } from '@/types';
-import got from '@/utils/got';
 import { load } from 'cheerio';
+
+import InvalidParameterError from '@/errors/types/invalid-parameter';
+import type { Route } from '@/types';
+import got from '@/utils/got';
 import { isValidHost } from '@/utils/valid-host';
 
 export const route: Route = {
@@ -31,7 +33,7 @@ async function handler(ctx) {
     const region = ctx.req.param('region') ?? 'ukraine';
     const limit = ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit')) : 50;
     if (!isValidHost(region)) {
-        throw new Error('Invalid region');
+        throw new InvalidParameterError('Invalid region');
     }
 
     const url = `https://${region}.liveuamap.com/`;

@@ -1,7 +1,9 @@
-import { Route } from '@/types';
+import { load } from 'cheerio';
+
+import InvalidParameterError from '@/errors/types/invalid-parameter';
+import type { Route } from '@/types';
 import cache from '@/utils/cache';
 import got from '@/utils/got';
-import { load } from 'cheerio';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
 
@@ -36,15 +38,15 @@ export const route: Route = {
     handler,
     url: 'sist.ustc.edu.cn/',
     description: `| 通知公告 | 招生工作 |
-  | -------- | -------- |
-  | tzgg     | zsgz     |`,
+| -------- | -------- |
+| tzgg     | zsgz     |`,
 };
 
 async function handler(ctx) {
     const type = ctx.req.param('type') ?? 'tzgg';
     const info = map.get(type);
     if (!info) {
-        throw new Error('invalid type');
+        throw new InvalidParameterError('invalid type');
     }
     const id = info.id;
 
@@ -69,7 +71,7 @@ async function handler(ctx) {
     items = await Promise.all(
         items.map((item) =>
             cache.tryGet(item.link, async () => {
-                let desc = '';
+                let desc: string;
                 try {
                     const response = await got(item.link);
                     desc = load(response.data)('div.wp_articlecontent').html();

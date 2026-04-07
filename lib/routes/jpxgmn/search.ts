@@ -1,9 +1,11 @@
-import { Route } from '@/types';
-import { originUrl, getArticleDesc } from './utils';
-import cache from '@/utils/cache';
-import got from '@/utils/got';
 import { load } from 'cheerio';
+
+import type { Route } from '@/types';
+import cache from '@/utils/cache';
+import ofetch from '@/utils/ofetch';
 import { parseDate } from '@/utils/parse-date';
+
+import { getArticleDesc, getOriginUrl } from './utils';
 
 export const route: Route = {
     path: '/search/:kw',
@@ -13,14 +15,17 @@ export const route: Route = {
     name: '搜索',
     maintainers: ['Urabartin'],
     handler,
+    features: {
+        nsfw: true,
+    },
 };
 
 async function handler(ctx) {
     const { kw } = ctx.req.param();
-    const searchUrl = originUrl + `/plus/search/index.asp?keyword=${kw}`;
-    const response = await got(searchUrl);
+    const searchUrl = (await getOriginUrl()) + `/plus/search/index.asp?keyword=${kw}`;
+    const response = await ofetch.raw(searchUrl);
     const baseUrl = new URL(response.url).origin;
-    const $ = load(response.data);
+    const $ = load(response._data);
     const items = $('div.list div.list div.node p')
         .toArray()
         .map((item) => ({

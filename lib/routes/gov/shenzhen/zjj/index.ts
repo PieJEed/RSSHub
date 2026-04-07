@@ -1,6 +1,8 @@
-import { Route } from '@/types';
-import got from '@/utils/got';
 import { load } from 'cheerio';
+
+import InvalidParameterError from '@/errors/types/invalid-parameter';
+import type { Route } from '@/types';
+import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 import timezone from '@/utils/timezone';
 
@@ -33,15 +35,15 @@ export const route: Route = {
     maintainers: ['lonn'],
     handler,
     description: `| 通知公告 |
-  | :------: |
-  |   tzgg   |`,
+| :------: |
+|   tzgg   |`,
 };
 
 async function handler(ctx) {
     const baseUrl = 'http://zjj.sz.gov.cn/xxgk/';
     const cfg = config[ctx.req.param('caty')];
     if (!cfg) {
-        throw new Error('Bad category. See <a href="https://docs.rsshub.app/routes/government#guang-dong-sheng-ren-min-zheng-fu-shen-zhen-shi-zhu-fang-he-jian-she-ju">docs</a>');
+        throw new InvalidParameterError('Bad category. See <a href="https://docs.rsshub.app/routes/government#guang-dong-sheng-ren-min-zheng-fu-shen-zhen-shi-zhu-fang-he-jian-she-ju">docs</a>');
     }
 
     const currentUrl = new URL(cfg.link, baseUrl).href;
